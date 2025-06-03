@@ -1,0 +1,552 @@
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const { Sequelize } = require('sequelize');
+
+// Импорт модулей
+const whatsappModule = require('./app/main/whatsapp');
+const databaseModule = require('./app/main/database');
+const recipientsModule = require('./app/main/recipients');
+const templatesModule = require('./app/main/templates');
+const mediaModule = require('./app/main/media');
+const tasksModule = require('./app/main/tasks');
+const notificationsModule = require('./app/main/notifications');
+
+// Глобальные переменные
+let mainWindow;
+let database;
+let whatsappClient;
+
+// Инициализация приложения
+async function initializeApp() {
+  try {
+    // Инициализация базы данных
+    database = await databaseModule.initializeDatabase();
+    
+    // Инициализация WhatsApp клиента
+    whatsappClient = await whatsappModule.initializeWhatsAppClient();
+    
+    // Инициализация модулей
+    await recipientsModule.initialize(database);
+    await templatesModule.initialize(database);
+    await mediaModule.initialize(database);
+    await tasksModule.initialize(database, whatsappClient);
+    await notificationsModule.initialize(mainWindow);
+    
+    console.log('Приложение успешно инициализировано');
+    
+    // Отправляем уведомление о готовности приложения
+    if (mainWindow) {
+      mainWindow.webContents.send('notification', {
+        title: 'Приложение готово',
+        message: 'WhatsApp Sender Desktop успешно инициализирован',
+        type: 'success'
+      });
+    }
+  } catch (error) {
+    console.error('Ошибка инициализации приложения:', error);
+    
+    // Отправляем уведомление об ошибке
+    if (mainWindow) {
+      mainWindow.webContents.send('notification', {
+        title: 'Ошибка инициализации',
+        message: `Не удалось инициализировать приложение: ${error.message}`,
+        type: 'error'
+      });
+    }
+  }
+}
+
+// Создание главного окна
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    },
+    icon: path.join(__dirname, 'resources', 'icons', 'icon.png')
+  });
+
+  // Загрузка HTML файла
+  mainWindow.loadFile(path.join(__dirname, 'app', 'renderer', 'index.html'));
+  
+  // Открытие DevTools в режиме разработки
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools();
+  }
+  
+  // Обработка закрытия окна
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+// Обработка готовности приложения
+app.whenReady().then(() => {
+  createWindow();
+  initializeApp();
+  
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+// Обработка закрытия приложения
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+// IPC обработчики для статистики
+ipcMain.handle('get-accounts-count', async () => {
+  try {
+    // Заглушка для демонстрации
+    return 0;
+  } catch (error) {
+    console.error('Error getting accounts count:', error);
+    return 0;
+  }
+});
+
+ipcMain.handle('get-recipients-count', async () => {
+  try {
+    // Заглушка для демонстрации
+    return 0;
+  } catch (error) {
+    console.error('Error getting recipients count:', error);
+    return 0;
+  }
+});
+
+ipcMain.handle('get-templates-count', async () => {
+  try {
+    // Заглушка для демонстрации
+    return 0;
+  } catch (error) {
+    console.error('Error getting templates count:', error);
+    return 0;
+  }
+});
+
+ipcMain.handle('get-active-jobs-count', async () => {
+  try {
+    // Заглушка для демонстрации
+    return 0;
+  } catch (error) {
+    console.error('Error getting active jobs count:', error);
+    return 0;
+  }
+});
+
+ipcMain.handle('get-recent-activity', async () => {
+  try {
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting recent activity:', error);
+    return [];
+  }
+});
+
+// IPC обработчики для аккаунтов WhatsApp
+ipcMain.handle('get-whatsapp-accounts', async () => {
+  try {
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting WhatsApp accounts:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('create-whatsapp-account', async (event, data) => {
+  try {
+    console.log('Creating WhatsApp account:', data);
+    // Заглушка для демонстрации
+    return { id: Date.now(), ...data, isLoggedIn: false };
+  } catch (error) {
+    console.error('Error creating WhatsApp account:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('update-whatsapp-account', async (event, id, data) => {
+  try {
+    console.log('Updating WhatsApp account:', id, data);
+    // Заглушка для демонстрации
+    return { id, ...data };
+  } catch (error) {
+    console.error('Error updating WhatsApp account:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('delete-whatsapp-account', async (event, id) => {
+  try {
+    console.log('Deleting WhatsApp account:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error deleting WhatsApp account:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-login-qr-code', async (event, id) => {
+  try {
+    console.log('Getting login QR code for account:', id);
+    // Заглушка для демонстрации
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  } catch (error) {
+    console.error('Error getting login QR code:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('check-login-status', async (event, id) => {
+  try {
+    console.log('Checking login status for account:', id);
+    // Заглушка для демонстрации
+    return false;
+  } catch (error) {
+    console.error('Error checking login status:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('logout-whatsapp-account', async (event, id) => {
+  try {
+    console.log('Logging out WhatsApp account:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error logging out WhatsApp account:', error);
+    throw error;
+  }
+});
+
+// IPC обработчики для получателей
+ipcMain.handle('get-recipients', async (event, filters) => {
+  try {
+    console.log('Getting recipients with filters:', filters);
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting recipients:', error);
+    return [];
+  }
+});
+
+// Добавляем недостающие IPC обработчики для получателей
+ipcMain.handle('create-recipient', async (event, data) => {
+  try {
+    console.log('Creating recipient:', data);
+    // Заглушка для демонстрации
+    return { id: Date.now(), ...data };
+  } catch (error) {
+    console.error('Error creating recipient:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('update-recipient', async (event, id, data) => {
+  try {
+    console.log('Updating recipient:', id, data);
+    // Заглушка для демонстрации
+    return { id, ...data };
+  } catch (error) {
+    console.error('Error updating recipient:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('delete-recipient', async (event, id) => {
+  try {
+    console.log('Deleting recipient:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error deleting recipient:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('import-recipients-from-csv', async (event, filePath, options) => {
+  try {
+    console.log('Importing recipients from CSV:', filePath, options);
+    // Заглушка для демонстрации
+    return { imported: 0, failed: 0 };
+  } catch (error) {
+    console.error('Error importing recipients from CSV:', error);
+    throw error;
+  }
+});
+
+// IPC обработчики для шаблонов
+ipcMain.handle('get-templates', async (event, filters) => {
+  try {
+    console.log('Getting templates with filters:', filters);
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting templates:', error);
+    return [];
+  }
+});
+
+// Добавляем недостающие IPC обработчики для шаблонов
+ipcMain.handle('create-template', async (event, data) => {
+  try {
+    console.log('Creating template:', data);
+    // Заглушка для демонстрации
+    return { id: Date.now(), ...data };
+  } catch (error) {
+    console.error('Error creating template:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('update-template', async (event, id, data) => {
+  try {
+    console.log('Updating template:', id, data);
+    // Заглушка для демонстрации
+    return { id, ...data };
+  } catch (error) {
+    console.error('Error updating template:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('delete-template', async (event, id) => {
+  try {
+    console.log('Deleting template:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error deleting template:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('process-template', async (event, templateContent, variables) => {
+  try {
+    console.log('Processing template:', templateContent, variables);
+    // Простая реализация обработки шаблона
+    let processedContent = templateContent;
+    for (const [key, value] of Object.entries(variables)) {
+      processedContent = processedContent.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    }
+    return processedContent;
+  } catch (error) {
+    console.error('Error processing template:', error);
+    throw error;
+  }
+});
+
+// IPC обработчики для медиафайлов
+ipcMain.handle('get-media-files', async () => {
+  try {
+    console.log('Getting media files');
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting media files:', error);
+    return [];
+  }
+});
+
+// Добавляем недостающие IPC обработчики для медиафайлов
+ipcMain.handle('upload-media-file', async (event, filePath, type, name, category) => {
+  try {
+    console.log('Uploading media file:', filePath, type, name, category);
+    // Заглушка для демонстрации
+    return { id: Date.now(), name, type, path: filePath, category };
+  } catch (error) {
+    console.error('Error uploading media file:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('delete-media-file', async (event, id) => {
+  try {
+    console.log('Deleting media file:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error deleting media file:', error);
+    throw error;
+  }
+});
+
+// IPC обработчики для заданий
+ipcMain.handle('get-jobs', async () => {
+  try {
+    console.log('Getting jobs');
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting jobs:', error);
+    return [];
+  }
+});
+
+// Добавляем недостающие IPC обработчики для заданий
+ipcMain.handle('create-job', async (event, data) => {
+  try {
+    console.log('Creating job:', data);
+    // Заглушка для демонстрации
+    return { id: Date.now(), ...data, status: 'pending', progress: 0, total: 0 };
+  } catch (error) {
+    console.error('Error creating job:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('start-job', async (event, id) => {
+  try {
+    console.log('Starting job:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error starting job:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('pause-job', async (event, id) => {
+  try {
+    console.log('Pausing job:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error pausing job:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('stop-job', async (event, id) => {
+  try {
+    console.log('Stopping job:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error stopping job:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('delete-job', async (event, id) => {
+  try {
+    console.log('Deleting job:', id);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error deleting job:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-messages', async (event, jobId, filters) => {
+  try {
+    console.log('Getting messages for job:', jobId, 'with filters:', filters);
+    // Заглушка для демонстрации
+    return [];
+  } catch (error) {
+    console.error('Error getting messages:', error);
+    return [];
+  }
+});
+
+// Добавляем обработчик для настроек
+ipcMain.handle('get-settings', async () => {
+  try {
+    console.log('Getting settings');
+    // Заглушка для демонстрации
+    return {
+      delayBetweenMessages: 5,
+      maxMessagesPerDay: 100
+    };
+  } catch (error) {
+    console.error('Error getting settings:', error);
+    return {
+      delayBetweenMessages: 5,
+      maxMessagesPerDay: 100
+    };
+  }
+});
+
+// Добавляем обработчик для сохранения настроек
+ipcMain.handle('save-settings', async (event, settings) => {
+  try {
+    console.log('Saving settings:', settings);
+    // Заглушка для демонстрации
+    return true;
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    throw error;
+  }
+});
+
+// IPC обработчики для диалогов
+ipcMain.handle('select-file', async (event, options) => {
+  try {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, options);
+    if (canceled) {
+      return null;
+    }
+    return filePaths[0];
+  } catch (error) {
+    console.error('Error selecting file:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('save-file', async (event, options) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, options);
+    if (canceled) {
+      return null;
+    }
+    return filePath;
+  } catch (error) {
+    console.error('Error saving file:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('show-message', async (event, options) => {
+  try {
+    return await dialog.showMessageBox(mainWindow, options);
+  } catch (error) {
+    console.error('Error showing message:', error);
+    throw error;
+  }
+});
+
+// IPC обработчики для системных функций
+ipcMain.handle('open-external-link', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return true;
+  } catch (error) {
+    console.error('Error opening external link:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('quit-app', () => {
+  app.quit();
+});
+
+// Отправка уведомлений
+function sendNotification(title, message, type = 'info') {
+  if (mainWindow) {
+    mainWindow.webContents.send('notification', { title, message, type });
+  }
+}
